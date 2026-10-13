@@ -3,6 +3,7 @@
 ===================================== */
 
 let workbook = null;
+let seleccionPersonalizada = null; // null = selección por hojas; array = verbos elegidos individualmente
 
 let verbos = [];
 let testActual = [];
@@ -52,6 +53,10 @@ function registrarEventos() {
     const eventos = {
 
         btnImportar: abrirSelectorExcel,
+
+        btnSeleccionarVerbos: mostrarSelectorVerbos,
+
+        btnCargarSeleccion: cargarSeleccionPersonalizada,
 
         btnComenzar: iniciarTest,
 
@@ -227,6 +232,7 @@ async function importarExcel() {
                 type: "array"
             });
 
+        seleccionPersonalizada = null;
         generarSelectorHojas();
 
         alert(
@@ -303,7 +309,12 @@ function generarSelectorHojas() {
             checkbox.value =
                 nombre;
 
-            checkbox.addEventListener("change", actualizarNumeroPreguntasPorSeleccion);
+            checkbox.addEventListener("change", () => {
+                seleccionPersonalizada = null;
+                const panelIndividual = document.getElementById("selectorVerbos");
+                if (panelIndividual) panelIndividual.hidden = true;
+                actualizarNumeroPreguntasPorSeleccion();
+            });
 
             label.appendChild(
                 checkbox
@@ -331,6 +342,97 @@ function generarSelectorHojas() {
     actualizarNumeroPreguntasPorSeleccion();
 }
 
+
+function obtenerNombreHojaTodos() {
+    if (!workbook) return null;
+    return workbook.SheetNames.find(nombre => nombre.trim().toLowerCase() === "todos") || null;
+}
+
+function mostrarSelectorVerbos() {
+    if (!workbook) {
+        alert("Primero debe cargarse un Excel.");
+        return;
+    }
+    const nombreHoja = obtenerNombreHojaTodos();
+    if (!nombreHoja) {
+        alert('El Excel no contiene una hoja llamada "Todos".');
+        return;
+    }
+
+    const contenedor = document.getElementById("selectorVerbos");
+    if (!contenedor) return;
+    const verbosTodos = obtenerVerbosHoja(nombreHoja);
+    contenedor.innerHTML = "";
+    contenedor.hidden = false;
+
+    const encabezado = document.createElement("div");
+    encabezado.className = "selector-verbos-acciones";
+    encabezado.innerHTML = `<strong>Selecciona los verbos que quieres estudiar (${verbosTodos.length})</strong>`;
+    const botones = document.createElement("div");
+    botones.className = "selector-verbos-acciones";
+    const marcarTodos = document.createElement("button");
+    marcarTodos.type = "button";
+    marcarTodos.textContent = "Marcar todos";
+    marcarTodos.addEventListener("click", () => contenedor.querySelectorAll(".verboCheck").forEach(c => c.checked = true));
+    const desmarcarTodos = document.createElement("button");
+    desmarcarTodos.type = "button";
+    desmarcarTodos.textContent = "Desmarcar todos";
+    desmarcarTodos.addEventListener("click", () => contenedor.querySelectorAll(".verboCheck").forEach(c => c.checked = false));
+    botones.append(marcarTodos, desmarcarTodos);
+    contenedor.append(encabezado, botones);
+
+    const lista = document.createElement("div");
+    lista.className = "lista-verbos-individuales";
+    verbosTodos.forEach((verbo, index) => {
+        const fila = document.createElement("label");
+        fila.className = "verbo-individual";
+        const check = document.createElement("input");
+        check.type = "checkbox";
+        check.className = "verboCheck";
+        check.dataset.index = String(index);
+        check.checked = seleccionPersonalizada === null
+            ? false
+            : seleccionPersonalizada.some(v => v.infinitivo === verbo.infinitivo && v.pasado === verbo.pasado && v.participio === verbo.participio);
+        const texto = document.createElement("span");
+        texto.textContent = `${index + 1}. ${verbo.infinitivo} — ${verbo.pasado} — ${verbo.participio}${verbo.meaning ? " — " + verbo.meaning : ""}`;
+        fila.append(check, texto);
+        lista.appendChild(fila);
+    });
+    contenedor.appendChild(lista);
+    const cargar = document.createElement("button");
+    cargar.type = "button";
+    cargar.id = "btnCargarSeleccion";
+    cargar.className = "btn-principal";
+    cargar.textContent = "Cargar la selección";
+    cargar.addEventListener("click", cargarSeleccionPersonalizada);
+    contenedor.appendChild(cargar);
+    contenedor.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function cargarSeleccionPersonalizada() {
+    const nombreHoja = obtenerNombreHojaTodos();
+    if (!nombreHoja) {
+        alert('El Excel no contiene una hoja llamada "Todos".');
+        return;
+    }
+    const todos = obtenerVerbosHoja(nombreHoja);
+    const checks = Array.from(document.querySelectorAll("#selectorVerbos .verboCheck:checked"));
+    if (!checks.length) {
+        alert("Marca al menos un verbo antes de cargar la selección.");
+        return;
+    }
+    seleccionPersonalizada = checks.map(c => todos[Number(c.dataset.index)]).filter(Boolean);
+    const inputCantidad = document.getElementById("cantidadPreguntas");
+    if (inputCantidad) {
+        inputCantidad.value = seleccionPersonalizada.length;
+        inputCantidad.max = seleccionPersonalizada.length;
+    }
+    const resumen = document.getElementById("resumenSeleccion");
+    if (resumen) resumen.textContent = `Selección individual cargada: ${seleccionPersonalizada.length} verbos.`;
+    const panel = document.getElementById("selectorVerbos");
+    if (panel) panel.hidden = true;
+    alert(`Se han cargado ${seleccionPersonalizada.length} verbos para estudiar.`);
+}
 
 function actualizarNumeroPreguntasPorSeleccion() {
 
@@ -383,10 +485,10 @@ function estudiarTodos() {
         obtenerHojasSeleccionadas();
 
 
-    if (hojas.length === 0) {
+    if (seleccionPersonalizada === null && hojas.length === 0) {
 
         alert(
-            "Seleccione al menos una hoja."
+            "Seleccione una o varias hojas, o pulse Seleccionar para elegir verbos individuales."
         );
 
         return;
@@ -409,7 +511,7 @@ function estudiarTodos() {
 
     mostrarModoEstudio(
         listaVerbos,
-        hojas
+        seleccionPersonalizada !== null ? ["Selección individual"] : hojas
     );
 }
 
@@ -507,6 +609,10 @@ function obtenerVerbosHoja(
 ===================================== */
 
 function cargarVerbosSeleccionados() {
+
+    if (seleccionPersonalizada !== null) {
+        return seleccionPersonalizada.slice();
+    }
 
     const hojas =
         obtenerHojasSeleccionadas();

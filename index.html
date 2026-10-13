@@ -68,7 +68,7 @@
             <input
                 type="file"
                 id="excelFile"
-                accept=".xlsx,.xls">
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
 
             <button
                 id="btnImportar">
@@ -90,7 +90,11 @@
                 <!-- generado desde JS -->
 
             </div>
-		<div id="resumenSeleccion"></div>
+            <div class="selector-verbos-acciones">
+                <button id="btnSeleccionar" type="button">Seleccionar</button>
+            </div>
+            <div id="selectorVerbos" hidden></div>
+            <div id="resumenSeleccion"></div>
         </section>
 
         <section class="panel">
@@ -244,7 +248,7 @@ if ("serviceWorker"
 
 }
 
-</script>>
+</script>
 
 </body>
 

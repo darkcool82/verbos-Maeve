@@ -559,3 +559,11 @@ input::placeholder{
 
     background:#f8fafc;
 }
+
+/* Selección individual de verbos */
+#selectorVerbos { margin-top: 14px; border: 1px solid #d8dce6; border-radius: 10px; padding: 12px; background: #fff; }
+.selector-verbos-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+.lista-verbos-individuales { display: flex; flex-direction: column; gap: 6px; max-height: 55vh; overflow-y: auto; margin: 12px 0; }
+.verbo-individual { display: flex; align-items: flex-start; gap: 10px; padding: 9px; border-bottom: 1px solid #e6eaf0; line-height: 1.4; cursor: pointer; overflow-wrap: anywhere; }
+.verbo-individual input { flex: 0 0 auto; margin-top: 3px; width: 18px; height: 18px; }
+#resumenSeleccion { margin-top: 10px; font-weight: 600; }
