@@ -54,7 +54,7 @@ function registrarEventos() {
 
         btnImportar: abrirSelectorExcel,
 
-        btnSeleccionarVerbos: mostrarSelectorVerbos,
+        btnSeleccionar: mostrarSelectorVerbos,
 
         btnCargarSeleccion: cargarSeleccionPersonalizada,
 
@@ -353,21 +353,36 @@ function mostrarSelectorVerbos() {
         alert("Primero debe cargarse un Excel.");
         return;
     }
-    const nombreHoja = obtenerNombreHojaTodos();
-    if (!nombreHoja) {
-        alert('El Excel no contiene una hoja llamada "Todos".');
+
+    const hojasMarcadas = obtenerHojasSeleccionadas();
+    if (hojasMarcadas.length !== 1) {
+        alert("Selecciona exactamente una hoja y después pulsa «Seleccionar».");
         return;
     }
 
+    const nombreHoja = hojasMarcadas[0];
     const contenedor = document.getElementById("selectorVerbos");
-    if (!contenedor) return;
-    const verbosTodos = obtenerVerbosHoja(nombreHoja);
+    if (!contenedor) {
+        alert("No se encuentra el panel de selección de verbos.");
+        return;
+    }
+
+    const verbosHoja = obtenerVerbosHoja(nombreHoja);
+    if (!verbosHoja.length) {
+        alert(`La hoja «${nombreHoja}» no contiene verbos válidos.`);
+        return;
+    }
+
     contenedor.innerHTML = "";
     contenedor.hidden = false;
+    contenedor.dataset.hoja = nombreHoja;
 
     const encabezado = document.createElement("div");
     encabezado.className = "selector-verbos-acciones";
-    encabezado.innerHTML = `<strong>Selecciona los verbos que quieres estudiar (${verbosTodos.length})</strong>`;
+    const titulo = document.createElement("strong");
+    titulo.textContent = `Hoja «${nombreHoja}»: selecciona los verbos (${verbosHoja.length})`;
+    encabezado.appendChild(titulo);
+
     const botones = document.createElement("div");
     botones.className = "selector-verbos-acciones";
     const marcarTodos = document.createElement("button");
@@ -383,55 +398,63 @@ function mostrarSelectorVerbos() {
 
     const lista = document.createElement("div");
     lista.className = "lista-verbos-individuales";
-    verbosTodos.forEach((verbo, index) => {
+    verbosHoja.forEach((verbo, index) => {
         const fila = document.createElement("label");
         fila.className = "verbo-individual";
         const check = document.createElement("input");
         check.type = "checkbox";
         check.className = "verboCheck";
         check.dataset.index = String(index);
-        check.checked = seleccionPersonalizada === null
-            ? false
-            : seleccionPersonalizada.some(v => v.infinitivo === verbo.infinitivo && v.pasado === verbo.pasado && v.participio === verbo.participio);
+        check.checked = seleccionPersonalizada !== null &&
+            seleccionPersonalizada.some(v => v._hoja === nombreHoja && v._indiceHoja === index);
         const texto = document.createElement("span");
         texto.textContent = `${index + 1}. ${verbo.infinitivo} — ${verbo.pasado} — ${verbo.participio}${verbo.meaning ? " — " + verbo.meaning : ""}`;
         fila.append(check, texto);
         lista.appendChild(fila);
     });
     contenedor.appendChild(lista);
+
     const cargar = document.createElement("button");
     cargar.type = "button";
-    cargar.id = "btnCargarSeleccion";
+    cargar.id = "btnCargarSeleccionInterno";
     cargar.className = "btn-principal";
     cargar.textContent = "Cargar la selección";
     cargar.addEventListener("click", cargarSeleccionPersonalizada);
     contenedor.appendChild(cargar);
-    contenedor.scrollIntoView({behavior:"smooth", block:"start"});
+    contenedor.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function cargarSeleccionPersonalizada() {
-    const nombreHoja = obtenerNombreHojaTodos();
-    if (!nombreHoja) {
-        alert('El Excel no contiene una hoja llamada "Todos".');
+    const contenedor = document.getElementById("selectorVerbos");
+    if (!workbook || !contenedor || !contenedor.dataset.hoja) {
+        alert("Primero selecciona una hoja y pulsa «Seleccionar».");
         return;
     }
+
+    const nombreHoja = contenedor.dataset.hoja;
     const todos = obtenerVerbosHoja(nombreHoja);
-    const checks = Array.from(document.querySelectorAll("#selectorVerbos .verboCheck:checked"));
+    const checks = Array.from(contenedor.querySelectorAll(".verboCheck:checked"));
     if (!checks.length) {
         alert("Marca al menos un verbo antes de cargar la selección.");
         return;
     }
-    seleccionPersonalizada = checks.map(c => todos[Number(c.dataset.index)]).filter(Boolean);
+
+    seleccionPersonalizada = checks
+        .map(c => {
+            const verbo = todos[Number(c.dataset.index)];
+            return verbo ? { ...verbo, _hoja: nombreHoja, _indiceHoja: Number(c.dataset.index) } : null;
+        })
+        .filter(Boolean);
+
     const inputCantidad = document.getElementById("cantidadPreguntas");
     if (inputCantidad) {
         inputCantidad.value = seleccionPersonalizada.length;
         inputCantidad.max = seleccionPersonalizada.length;
     }
     const resumen = document.getElementById("resumenSeleccion");
-    if (resumen) resumen.textContent = `Selección individual cargada: ${seleccionPersonalizada.length} verbos.`;
-    const panel = document.getElementById("selectorVerbos");
-    if (panel) panel.hidden = true;
-    alert(`Se han cargado ${seleccionPersonalizada.length} verbos para estudiar.`);
+    if (resumen) resumen.textContent = `Selección cargada desde «${nombreHoja}»: ${seleccionPersonalizada.length} verbos.`;
+    contenedor.hidden = true;
+    alert(`Se han cargado ${seleccionPersonalizada.length} verbos de la hoja «${nombreHoja}». Ya puedes estudiar o comenzar el test.`);
 }
 
 function actualizarNumeroPreguntasPorSeleccion() {
@@ -611,7 +634,7 @@ function obtenerVerbosHoja(
 function cargarVerbosSeleccionados() {
 
     if (seleccionPersonalizada !== null) {
-        return seleccionPersonalizada.slice();
+        return seleccionPersonalizada.map(({ _hoja, _indiceHoja, ...verbo }) => verbo);
     }
 
     const hojas =
